@@ -3,7 +3,9 @@ Repositorio en Stata que analiza la evolución de la probabilidad de empleo info
 con el objetivo de caracterizar los cambios en el perfil de los trabajadores según nivel educativo y género.
 
 #        INTEGRANTES:
-Tovar David Enrique, Solano Londono Andres, Rodriguez Dumar Santiago,
-Hernandez Manuel Santiago, Fierro Caviedes Laura Sofia, Meza Samuel Alejandro.
+Tovar David Enrique, Rodriguez Dumar Santiago,
+Hernandez Manuel Santiago, Fierro Caviedes Laura Sofia, Ballén Zahir Nicolas.
 
  #      Datos tomados de:
+Gran Encuesta Integrada de Hogares (GEIH), elaborada por el Departamento Administrativo Nacional de Estadística (DANE), 
+la cual ofrece información con periodicidad mensual, permitiendo un seguimiento detallado de las dinámicas del mercado laboral.
