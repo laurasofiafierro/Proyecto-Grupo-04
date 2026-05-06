@@ -6,4 +6,4 @@ con el objetivo de caracterizar los cambios en el perfil de los trabajadores seg
 Tovar David Enrique, Solano Londono Andres, Rodriguez Dumar Santiago,
 Hernandez Manuel Santiago, Fierro Caviedes Laura Sofia, Meza Samuel Alejandro.
 
- #      Datos tomados de:
+ #      Datos tomados de: GEIH 2022-2025 , DANE
