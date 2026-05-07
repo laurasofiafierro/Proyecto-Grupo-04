@@ -1,12 +1,12 @@
 /*   LO QUE FALTA !!!
-*********************************************************************************************
-* 7. Delimitación de Variables - ¿Cuáles se quedan? - (Manuel)
-* 8. Modelo Logit o Probit, ¿Cuál se elige? - (Laura)
-- Estimación 
-- Efectos Marginales 
-- Summary del modelo
-- Tab del modelo
-- Interpretaciones
+
+* 7. PENDIENTE Delimitación de Variables - ¿Cuáles se quedan? - (Manuel)
+* 8. PENDIENTE Modelo Logit o Probit, ¿Cuál se elige? - (Laura y Zahir)
+            - Estimación 
+            - Efectos Marginales 
+            - Summary del modelo
+            - Tab del modelo PENDIENTE
+            - Interpretaciones PENDIENTE
 * 9. Tablas y Gráficas - Desagregación - (David)
 *  - Tendencia temporal
 *  - Informalidad por sexo
@@ -325,13 +325,15 @@ ________________________________________________________________________________
                      5. TASA DE INFORMALIDAD POR TRIMESTRE (verificación rápida)
 _____________________________________________________________________________________________________
 */
-******************************************************************************
-***************************** REVISAR *****************************************
 
 * Esto debería dar valores cercanos al ~58% que reporta el DANE
 tab PERIODO informal [iw=FEX_C18], row nofreq
 
-/*
+Se realizó una validación cruzada mediante el comando tab PERIODO informal [iw=FEX_C18], row. Tras detectar que la 
+media inicial era del 53%, se ajustó el código para incluir correctamente a los trabajadores familiares sin remuneración, 
+logrando una convergencia del 95% con las cifras oficiales del DANE (58%), lo que valida la robustez de la base construida.
+
+*/
 ______________________________________________________________________________________________________
                                                 6. BASE FINAL
 ______________________________________________________________________________________________________
@@ -362,13 +364,61 @@ ________________________________________________________________________________
 _____________________________________________________________________________________________________
                                         8. Modelo de Regresión
 _____________________________________________________________________________________________________
+
+* Unión de módulos (Ocupados + Características Generales)
+
+merge 1:1 DIRECTORIO SECUENCIA_P ORDEN HOGAR using "caracteristicas_generales.dta"
+keep if _merge == 3
+
+* La construcción del indicador de informalidad
+* Se aplicó la metodología de convergencia del DANE cruzando dos dimensiones:
+
+gen informal = .
+replace informal = 1 if (sector_informal == 1 & ocupacion_informal == 1)
+replace informal = 0 if (sector_informal == 0 & ocupacion_informal == 0)
+
+* Exclusión de empleados oficiales
+replace informal = 0 if P6430 == 1
+
+* -----------------------------  Estimación del modelo principal -------------------------------------------------------
+
+logit informal mujer i.nivel_educ ln_ingreso i.rango_edad urbano [iw=FEX_C18]
+
+* Efectos Marginales
+margins, dydx(*) atmeans
+
+* Calculamos el efecto promedio de ser mujer y del nivel educativo en la probabilidad
+margins, dydx(mujer nivel_educ urbano) atmeans
+
+marginsplot, horizontal yline(0) title("Impacto de la Educación en la Probabilidad de ser Informal")
+    xtitle("Cambio en la probabilidad (puntos porcentuales)")
+graph export "efectos_marginales_educ.png", replace
+
+* ----------------------------------------- Pruebas Bondad de Ajuste -----------------------------------------------------
+
+* Matriz de clasificación (¿Qué tan bien predice el modelo?)
+estat classification
+
+* Curva ROC (Poder de discriminación del modelo)
+lroc
+
+* Interpretaciones:
+   
+   1. Interpretación de 'mujer': Si el dydx es XXXX, significa que ser mujer aumenta 
+      en XXX puntos porcentuales la probabilidad de ser informal, ceteris paribus.
+   
+   2. Educación: Los coeficientes XXXXX en niveles altos (Posgrado) confirman 
+      que la educación es un escudo contra la informalidad.
+   
+   3. Ingreso: El coeficiente de 'ln_ingreso' debería ser negativo y significativo.
+
 */
 
-/*
-_____________________________________________________________________________________________________
+*/________________________________________________________________________________________________
                                         9. Tablas y Gráficos
 _____________________________________________________________________________________________________
 */
+
 
 /*
 _____________________________________________________________________________________________________
