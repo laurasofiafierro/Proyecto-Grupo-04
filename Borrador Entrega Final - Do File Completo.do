@@ -376,12 +376,12 @@ di "Período: 2022Q1 - 2025Q4 (16 trimestres)"
 
 /*
 _____________________________________________________________________________________________________
- 
                                       7. Modelo de Regresión
 _____________________________________________________________________________________________________
 
 
 /* -----------------------------  Estimación del modelo principal ------------------------------------
+
 
    Siguiendo la especificación de Sánchez Bárcenas et al. (2018), ecuación (6):
    
@@ -394,72 +394,65 @@ ________________________________________________________________________________
    Variable dependiente: informal (1=Informal, 0=Formal)
 *\
 
-* Se crea el limite de iteraciones
-set maxiter 10
-set iter 5
+* Limite de iteraciones
+
+set more off 
+set maxiter 20
+
 
 * Detalles para análisis
-* Se hace un reemplazo de las variables string
 
+* Se hace un reemplazo de las variables string
 destring ORDEN, replace
 destring DIRECTORIO, replace
 destring SECUENCIA_P, replace
 destring HOGAR, replace
 
+* ----------------------------- Variables auxiliares ---------------------------
+
 * Edad
 
+cap drop edad
 gen edad = P6040
 label var edad "Edad (años)"
 
-* 1. Variable con_pareja ----------------------------------------------------------------
+cap drop edad2
+gen edad2 = edad^2
+
+* Con pareja
 
 cap drop con_pareja
 gen con_pareja = 0
-replace con_pareja = 1 if inlist(P6070, 1, 2)  // 1=Casado, 2=Unión libre
+replace con_pareja = 1 if inlist(P6070, 1, 2)
+
 label variable con_pareja "Tiene pareja"
-label define lpareja 0 "Sin pareja" 1 "Con pareja"
+label define lpareja 0 "Sin pareja" 1 "Con pareja", replace
 label values con_pareja lpareja
 
-* 2. Variable ingreso_mill -------------------------------------------------------
+* Logaritmo del Ingreso
+cap drop ln_ingreso
+gen ln_ingreso = ln(ingreso) if ingreso > 0
 
-cap drop ingreso_mill
-gen ingreso_mill = ingreso / 1000000
-label variable ingreso_mill "Ingreso laboral (millones COP)"
+label variable ln_ingreso "Logaritmo del ingreso laboral"
 
-* Verificar que nivel_educ es numérica (ya debería estarlo)
-cap confirm numeric variable nivel_educ
-if _rc == 0 {
-    di "✓ nivel_educ es numérica - correcto"
-}
-else {
-    di "ERROR: nivel_educ no es numérica"
-}
+* Verificaciones
+tab informal tab nivel_educ informal, row 
+sum ingreso ln_ingreso, detail
 
 * Modelo con pesos -------------------------------------------------------------------------------------
 
-logit informal mujer edad con_pareja nivel_educ ingreso_mill [pweight=FEX_C18]
+* ln natural del ingreso
+logit informal mujer edad con_pareja i.nivel_educ ln_ingreso [pw=FEX_C18], vce(robust)
 
-* ----------------------3.  Modelo con factores de expansión (pweight) - USANDO P6040 (edad) -------------
-
-logit informal mujer P6040 con_pareja i.nivel_educ ingreso_mill [pweight=FEX_C18], vce(robust)
+* ingreso_millones
+logit informal mujer edad con_pareja i.nivel_educ ingreso_mill [pweight=FEX_C18], vce(robust)
 
 * Odds ratios
 
 logit, or
 logit informal mujer edad con_pareja nivel_educ ingreso_mill [pweight=FEX_C18], or
 
-**** En ejecución del modelo se presentan más de 100 iteraciones, sin embargo se puede acotamos la cantidad
-de repeticiones con el fin de ajustarlo
-
-* Opción 1: Reducir la tolerancia (menos preciso, más rápido)
-logit informal mujer P6040 con_pareja i.nivel_educ ingreso_mill [pw=FEX_C18], vce(robust) tolerance(1e-6)
-
-* Opción 2: Aumentar iteraciones pero mostrar menos log
-set iterlog off      * Nos muestra cada iteración
-set maxiter 100      * Máximo 100 iteraciones
-
-* Opción 3: Elegimos la opción sin errores robustos
-logit informal mujer P6040 con_pareja i.nivel_educ ingreso_mill [pw=FEX_C18]  ****
+*****************************************************************************************************
 
 * ---------------------------------- Pruebas Bondad de Ajuste ---------------------------------------
 
