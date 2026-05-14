@@ -401,15 +401,16 @@ ________________________________________________________________________________
 set maxiter 10
 set iter 5
 
-* 8.0 Verificar/Crear variable con_pareja
+(1)* 8.0 Verificar/Crear variable con_pareja
+
 cap drop con_pareja
 gen con_pareja = 0
-replace con_pareja = 1 if inlist(P6070, 1, 2)  // 1=Casado(a), 2=Unión libre
-label variable con_pareja "Tiene pareja (casado/unido)"
+replace con_pareja = 1 if inlist(P6070, 1, 2)  // 1=Casado, 2=Unión libre
+label variable con_pareja "Tiene pareja"
 label define lpareja 0 "Sin pareja" 1 "Con pareja"
 label values con_pareja lpareja
 
-* 8.0.1 Verificar/Crear ingreso_mill
+(2)* 8.0.1 Verificar/Crear ingreso_mill
 cap drop ingreso_mill
 gen ingreso_mill = ingreso / 1000000
 label variable ingreso_mill "Ingreso laboral (millones COP)"
@@ -426,13 +427,15 @@ else {
 * 8.1  Modelo con pesos
 logit informal mujer edad con_pareja nivel_educ ingreso_mill [pweight=FEX_C18]
 
-* 8.1.1 Modelo con factores de expansión (pweight) - USANDO P6040
+(3)* 8.1.1 Modelo con factores de expansión (pweight) - USANDO P6040 (edad)
 logit informal mujer P6040 con_pareja i.nivel_educ ingreso_mill [pweight=FEX_C18], vce(robust)
 
 * Odds ratios
+
+logit, or
 logit informal mujer edad con_pareja nivel_educ ingreso_mill [pweight=FEX_C18], or
 
-En ejecución del modelo se presentan mas  de 100 iteraciones, sin embargo se puede acotar la cantidad
+**** En ejecución del modelo se presentan mas  de 100 iteraciones, sin embargo se puede acotar la cantidad
 de repeticiones con el fin de ajustarlo
 
 * Opción 1: Reducir la tolerancia (menos preciso, más rápido)
@@ -443,7 +446,7 @@ set iterlog off      * No muestra cada iteración
 set maxiter 100      * Máximo 100 iteraciones
 
 * Opción 3: Lo más rápido - sin errores robustos (no recomendado para trabajo académico)
-logit informal mujer P6040 con_pareja i.nivel_educ ingreso_mill [pw=FEX_C18]
+logit informal mujer P6040 con_pareja i.nivel_educ ingreso_mill [pw=FEX_C18]  ****
 
 * ---------------------------------- Pruebas Bondad de Ajuste ---------------------------------------
 
@@ -455,14 +458,12 @@ logit informal mujer P6040 con_pareja i.nivel_educ ingreso_mill
 * Matriz de clasificación (¿Qué tan bien predice el modelo?)
 
 estat classification
-estat ic
 
 * 8.1 Curva ROC (Poder de discriminación del modelo)
 
-lroc, title("Curva ROC - Modelo Logit") ///
-    lcolor(blue) lwidth(medthick) ///
-    graphregion(color(white))
-graph export "$ruta/figuras/curva_roc.png", replace width(1400) height(900)
+quietly logit informal mujer P6040 con_pareja i.nivel_educ ingreso_mill
+lroc, title("Curva ROC - Modelo Logit")
+
 
 * 8.2 AIC, BIC y Pseudo R^2
 estat ic
