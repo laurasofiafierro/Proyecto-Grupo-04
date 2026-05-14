@@ -60,9 +60,12 @@ describe, short
 * Tabla de los periodos (Por mes)
 tab PERIODO, m
 
+*/
 ____________________________________________________________________________________________________
                            2. ETIQUETAS DE VARIABLES Y LIMPIEZA DE BASE
 ____________________________________________________________________________________________________
+
+*/
 
 * -------------------------------------- Identificadores -------------------------------------------
 
@@ -107,6 +110,7 @@ label variable P3043 "Título o diploma obtenido"
         1=Ninguno, 2=Preescolar, 3=Primaria, 4=Secundaria, 5=Media,
         6=Técnico, 7=Tecnológico, 8=Universitario, 9=Especialización,
         10=Maestría, 11=Doctorado, 12=Normalista, 13=No sabe
+
 */
 
 gen nivel_educ = .
@@ -178,11 +182,12 @@ label variable P7075   "Tamaño empresa en segundo empleo"
 label variable RAMA2D_R4 "Rama de actividad (2 dígitos CIIU)"
 label variable OFICIO_C8 "Oficio (clasificación CNO)"
 
+*/
 ____________________________________________________________________________________________________
                            3. CONSTRUCCIÓN DE LA VARIABLE DE INFORMALIDAD
 ____________________________________________________________________________________________________
 
-/*
+
       Seguimos la definición del DANE que combina dos dimensiones:
      
       Dimensión 1 — Sector informal: empresa sin registro o sin contabilidad,
@@ -321,7 +326,6 @@ label values urbano lurb
 ____________________________________________________________________________________________________
                      5. TASA DE INFORMALIDAD POR TRIMESTRE (verificación rápida)
 _____________________________________________________________________________________________________
-*/
 
 * Esto debería dar valores cercanos al ~58% que reporta el DANE
 tab PERIODO informal [iw=FEX_C18], row nofreq
@@ -348,6 +352,7 @@ replace informal = 0 if (sector_informal == 0 & ocupacion_informal == 0)
 * Exclusión de empleados oficiales
 replace informal = 0 if P6430 == 1
 
+/*
 ______________________________________________________________________________________________________
                                                 6. BASE FINAL
 ______________________________________________________________________________________________________
