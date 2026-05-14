@@ -4,7 +4,7 @@ ________________________________________________________________________________
       DO-FILE - EVOLUCIÓN Y PERFIL DEL TRABAJADOR INFORMAL EN COLOMBIA: 
                 DINÁMICAS DE GÉNERO Y BRECHAS EDUCATIVAS PARA EL PERIODO 2022–2025
 
-          Equipo de Investigación (G4) : Fierro Caviedes Laura Sofia, Tovar Lugo David Enrique, 
+    Equipo de Investigación (G4) : Fierro Caviedes Laura Sofia, Tovar Lugo David Enrique, 
     Rodriguez Barrera Dumar Santiago, Hernandez Silva Manuel Santiago, Soto Ballén Zahir Nicolas.
 
           Fecha de elaboración: 26 de Mayo 2026.
@@ -107,6 +107,7 @@ replace nivel_educ = 6 if P3042 == 8                 // Universitario
 replace nivel_educ = 7 if inlist(P3042, 9, 10, 11)   // Posgrado
 
 label variable nivel_educ "Nivel educativo (agrupado)"
+
 label define lneduc 1 "Ninguno/Preescolar" 2 "Primaria" 3 "Secundaria" ///
     4 "Media" 5 "Técnico/Tecnológico" 6 "Universitario" 7 "Posgrado"
 label values nivel_educ lneduc
@@ -174,9 +175,9 @@ ________________________________________________________________________________
 
       Seguimos la definición del DANE que combina dos dimensiones:
      
-      Dimensión 1 — Sector informal: empresa sin registro o sin contabilidad,
+      * Dimensión 1 — Sector informal: empresa sin registro o sin contabilidad,
                   o empresa de hasta 5 trabajadores (P3069 <= 5 aprox.)
-      Dimensión 2 — Ocupación informal: no cotiza pensión, trabajador familiar
+      * Dimensión 2 — Ocupación informal: no cotiza pensión, trabajador familiar
                   sin remuneración, sin contrato, etc.
 
 -------------------------------------- Dimensión 1: Sector informal ---------------------------------
@@ -199,6 +200,7 @@ ________________________________________________________________________________
          1=Trab. solo, 2=2-3, 3=4-5, 4=6-10, 5=11-19...
 */
 
+*Generando la variable final
 gen sector_informal = 0
 
 * Por tamaño (hasta 5 personas) — las categorías 1, 2, 3 son <=5
@@ -228,6 +230,7 @@ label variable sector_informal "Sector informal (dimensión 1)"
         o no tiene contrato, o cotiza a régimen subsidiado.
 */ 
 
+* Variable ocupación informal
 gen ocup_informal = 0
 
 * No cotiza a pensión (la más importante según DANE)
@@ -248,14 +251,19 @@ replace ocup_informal = 0 if P6430 == 2
 
 label variable ocup_informal "Ocupación informal (dimensión 2)"
 
-* --------------------------- Variable Final: Informal (Si cumple ambas dimensiones) ----------------------
+* --------------------------- Variable Final: Informal -------------------------------------
 
+* Variable final: informalidad basada en convergencia DANE,
+* incluyendo categorías ocupacionales estructuralmente informales
 * Según DANE: la convergencia de sector informal Y ocupación informal
+
 gen informal = (sector_informal == 1 & ocup_informal == 1)
-replace informal = . if P6430 == .  // missing si no tiene posición ocupacional
+replace informal = . if P6430 == .  
+* missing si no tiene posición ocupacional
 
 * Pero hay casos especiales que siempre son informales:
 * Donde trabajadores familiares sin remuneración siempre son informales
+
 replace informal = 1 if inlist(P6430, 6, 7)
 
 * Jornaleros/peones sin pensión
@@ -275,16 +283,19 @@ ________________________________________________________________________________
 */
 
 * Ingreso mensual unificado (asalariados + independientes)
+
 gen double ingreso = P6500 if P6500 > 0 & P6500 != .
 replace ingreso = P6750 if P6750 > 0 & P6750 != . & ingreso == .
 replace ingreso = INGLABO if ingreso == . & INGLABO > 0 & INGLABO != .
 label variable ingreso "Ingreso laboral mensual"
 
 * Log del ingreso (para regresiones)
+
 gen ln_ingreso = ln(ingreso) if ingreso > 0
 label variable ln_ingreso "Log ingreso laboral"
 
 * Rangos de edad
+
 gen rango_edad = .
 replace rango_edad = 1 if P6040 >= 15 & P6040 <= 24
 replace rango_edad = 2 if P6040 >= 25 & P6040 <= 34
@@ -296,6 +307,7 @@ label define lredad 1 "15-24" 2 "25-34" 3 "35-44" 4 "45-54" 5 "55+"
 label values rango_edad lredad
 
 * Fecha trimestral para panel
+
 gen qfecha = yq(ANIO, TRIMESTRE)
 format qfecha %tq
 label variable qfecha "Fecha trimestral"
@@ -361,15 +373,11 @@ save "$ruta/informalidad_geih_2022_2025.dta", replace
 di "Base guardada: `c(N)' observaciones, `c(k)' variables"
 di "Período: 2022Q1 - 2025Q4 (16 trimestres)"
 
-/*
-_____________________________________________________________________________________________________
-                                    7. Delimitación de Variables
-_____________________________________________________________________________________________________
-*/
 
 /*
 _____________________________________________________________________________________________________
-                                        8. Modelo de Regresión
+ 
+                                                      7. Modelo de Regresión
 _____________________________________________________________________________________________________
 
 
@@ -385,11 +393,11 @@ ________________________________________________________________________________
          
    Variable dependiente: informal (1=Informal, 0=Formal)
 
-* Crear limite de iteraciones
+* Se crea el limite de iteraciones
 set maxiter 10
 set iter 5
 
-(1)* 8.0 Verificar/Crear variable con_pareja
+* 1. Variable con_pareja
 
 cap drop con_pareja
 gen con_pareja = 0
@@ -398,12 +406,13 @@ label variable con_pareja "Tiene pareja"
 label define lpareja 0 "Sin pareja" 1 "Con pareja"
 label values con_pareja lpareja
 
-(2)* 8.0.1 Verificar/Crear ingreso_mill
+* 2. Variable ingreso_mill
+
 cap drop ingreso_mill
 gen ingreso_mill = ingreso / 1000000
 label variable ingreso_mill "Ingreso laboral (millones COP)"
 
-* 8.0.2 Verificar que nivel_educ es numérica (ya debería estarlo)
+* Verificar que nivel_educ es numérica (ya debería estarlo)
 cap confirm numeric variable nivel_educ
 if _rc == 0 {
     di "✓ nivel_educ es numérica - correcto"
@@ -412,10 +421,12 @@ else {
     di "ERROR: nivel_educ no es numérica"
 }
 
-* 8.1  Modelo con pesos
+* Modelo con pesos -------------------------------------------------------------------------------------
+
 logit informal mujer edad con_pareja nivel_educ ingreso_mill [pweight=FEX_C18]
 
-(3)* 8.1.1 Modelo con factores de expansión (pweight) - USANDO P6040 (edad)
+* 3.  Modelo con factores de expansión (pweight) - USANDO P6040 (edad) ---------------------------------
+
 logit informal mujer P6040 con_pareja i.nivel_educ ingreso_mill [pweight=FEX_C18], vce(robust)
 
 * Odds ratios
@@ -423,17 +434,17 @@ logit informal mujer P6040 con_pareja i.nivel_educ ingreso_mill [pweight=FEX_C18
 logit, or
 logit informal mujer edad con_pareja nivel_educ ingreso_mill [pweight=FEX_C18], or
 
-**** En ejecución del modelo se presentan mas  de 100 iteraciones, sin embargo se puede acotar la cantidad
+**** En ejecución del modelo se presentan más de 100 iteraciones, sin embargo se puede acotamos la cantidad
 de repeticiones con el fin de ajustarlo
 
 * Opción 1: Reducir la tolerancia (menos preciso, más rápido)
 logit informal mujer P6040 con_pareja i.nivel_educ ingreso_mill [pw=FEX_C18], vce(robust) tolerance(1e-6)
 
 * Opción 2: Aumentar iteraciones pero mostrar menos log
-set iterlog off      * No muestra cada iteración
+set iterlog off      * Nos muestra cada iteración
 set maxiter 100      * Máximo 100 iteraciones
 
-* Opción 3: Lo más rápido - sin errores robustos (no recomendado para trabajo académico)
+* Opción 3: Elegimos la opción sin errores robustos
 logit informal mujer P6040 con_pareja i.nivel_educ ingreso_mill [pw=FEX_C18]  ****
 
 * ---------------------------------- Pruebas Bondad de Ajuste ---------------------------------------
@@ -441,34 +452,36 @@ logit informal mujer P6040 con_pareja i.nivel_educ ingreso_mill [pw=FEX_C18]  **
 * Los diagnósticos clásicos no aceptan pweight, así que retiramos los pesos
 
 describe informal mujer P6040 con_pareja nivel_educ ingreso_mill
+
 logit informal mujer P6040 con_pareja i.nivel_educ ingreso_mill
 
 * Matriz de clasificación (¿Qué tan bien predice el modelo?)
 
 estat classification
 
-* 8.1 Curva ROC (Poder de discriminación del modelo)
+* Curva ROC (Poder de discriminación del modelo)
 
 quietly logit informal mujer P6040 con_pareja i.nivel_educ ingreso_mill
 lroc, title("Curva ROC - Modelo Logit")
 
 
-* 8.2 AIC, BIC y Pseudo R^2
+* AIC, BIC y Pseudo R^2
 estat ic
 
-* 8.2.5 Test de Hosmer-Lemeshow
+* Test de Hosmer-Lemeshow
 estat gof, group(10)
 
-* 8.3 linktest (forma funcional)
+* linktest (forma funcional)
 linktest
 
-===================== PRUEBAS DE SUPUESTOS ====================="
+* -----------------------------  Prueba de Supuestos ------------------------------------------------
 
-* 8.4.1 VIF (multicolinealidad)
+* VIF (multicolinealidad)
 quietly regress informal mujer edad con_pareja i.nivel_educ ingreso_mill
 estat vif
 
-* 8.4.2 Test de linealidad (relación no lineal de edad)
+* Test de linealidad (relación no lineal de edad)
+
 gen edad2 = edad^2
 quietly logit informal mujer edad edad2 con_pareja i.nivel_educ ingreso_mill
 test edad edad2
@@ -495,12 +508,14 @@ quietly logit informal mujer edad con_pareja nivel_educ ingreso_mill [pweight=FE
 margins, dydx(mujer edad con_pareja nivel_educ ingreso_mill)
 
 * Gráfico de AMEs
+
 marginsplot, horizontal recast(scatter) ///
     title("Efectos marginales promedio sobre P(informal)") ///
     xline(0) graphregion(color(white))
 graph export "$ruta/figuras/g_AME.png", replace width(1400)
 
 * Probabilidad predicha por nivel educativo (otras X en su media)
+
 margins, at(nivel_educ=(1(1)7))
 marginsplot, ///
     title("Probabilidad predicha de informalidad por nivel educativo") ///
@@ -509,6 +524,7 @@ marginsplot, ///
 graph export "$ruta/figuras/g_margins_educ.png", replace width(1400)
 
 * Probabilidad predicha por ingreso
+
 margins, at(ingreso_mill=(0(0.5)5))
 marginsplot, ///
     title("Probabilidad predicha de informalidad por ingreso") ///
