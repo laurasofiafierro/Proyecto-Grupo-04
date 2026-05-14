@@ -1,15 +1,13 @@
-/*   LO QUE FALTA !!!
+/*   LO QUE FALTA 
 
 * 8. PENDIENTE Modelo Logit o Probit, ¿Cuál se elige? 
-            - Estimación 
-            - Efectos Marginales 
             - Summary del modelo
             - Tab del modelo PENDIENTE
             - Interpretaciones PENDIENTE
 * 9. Tablas y Gráficas - Desagregación 
-*  - Tendencia temporal
-*  - Informalidad por sexo
-*  - Educación
+*             - Tendencia temporal
+*              - Informalidad por sexo
+*              - Educación
 * 10. Interpretación de Resultados 
 * 11. Conclusiones 
 
@@ -382,19 +380,74 @@ ________________________________________________________________________________
 _____________________________________________________________________________________________________
 
 
-* -----------------------------  Estimación del modelo principal -------------------------------------------------------
+* -----------------------------  Estimación del modelo principal ------------------------------------
 
+* 8.1  Modelo con pesos
+logit informal mujer edad con_pareja nivel_educ ingreso_mill [pweight=FEX_C18]
 
+* Odds ratios
+logit informal mujer edad con_pareja nivel_educ ingreso_mill [pweight=FEX_C18], or
 
-* ----------------------------------------- Pruebas Bondad de Ajuste -----------------------------------------------------
+* ---------------------------------- Pruebas Bondad de Ajuste ---------------------------------------
+
+* Los diagnósticos clásicos no aceptan pweight, así que retiramos los pesos
+
+logit informal mujer edad con_pareja nivel_educ ingreso_mill
 
 * Matriz de clasificación (¿Qué tan bien predice el modelo?)
+
 estat classification
 
-* Curva ROC (Poder de discriminación del modelo)
+* 8.1 Curva ROC (Poder de discriminación del modelo)
 lroc
 
-* Interpretaciones:
+* 8.2 AIC, BIC y Pseudo R^2
+estat ic
+
+* 8.3 linktest (forma funcional)
+linktest
+
+* 8.4 VIF (colinealidad) con OLS auxiliar
+
+quietly regress informal mujer edad con_pareja nivel_educ ingreso_mill
+estat vif
+
+
+*-----------------------------   Efectos marginales (resultados preliminares) --------------------------
+
+quietly logit informal mujer edad con_pareja nivel_educ ingreso_mill [pweight=FEX_C18]
+
+* Efectos marginales promedio (AME)
+margins, dydx(mujer edad con_pareja nivel_educ ingreso_mill)
+
+* Gráfico de AMEs
+marginsplot, horizontal recast(scatter) ///
+    title("Efectos marginales promedio sobre P(informal)") ///
+    xline(0) graphregion(color(white))
+graph export "$ruta/figuras/g_AME.png", replace width(1400)
+
+* Probabilidad predicha por nivel educativo (otras X en su media)
+margins, at(nivel_educ=(1(1)7))
+marginsplot, ///
+    title("Probabilidad predicha de informalidad por nivel educativo") ///
+    ytitle("P(informal)") xtitle("Nivel educativo") ///
+    graphregion(color(white))
+graph export "$ruta/figuras/g_margins_educ.png", replace width(1400)
+
+* Probabilidad predicha por ingreso
+margins, at(ingreso_mill=(0(0.5)5))
+marginsplot, ///
+    title("Probabilidad predicha de informalidad por ingreso") ///
+    ytitle("P(informal)") xtitle("Ingreso laboral (millones COP)") ///
+    graphregion(color(white))
+graph export "$ruta/figuras/g_margins_ingreso.png", replace width(1400)
+
+
+di "Base guardada: `c(N)' observaciones, `c(k)' variables"
+di "Período: 2022Q1 - 2025Q4 (16 trimestres)"
+
+
+/* ------------------------------------- Interpretaciones:------------------------------------------
    
    1. Interpretación de 'mujer': Si el dydx es XXXX, significa que ser mujer aumenta 
       en XXX puntos porcentuales la probabilidad de ser informal, ceteris paribus.
