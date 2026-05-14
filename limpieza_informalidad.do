@@ -8,7 +8,7 @@ clear all
 set more off
 
 * Ruta de los datos (cambiar según la máquina)
-global ruta "C:\Users\m4nuh\OneDrive\Documentos\Claude\Projects\Banca Central"
+global ruta "C:\"
 
 *===============================================================================
 * 1. IMPORTAR LA BASE CRUDA
@@ -279,6 +279,96 @@ order DIRECTORIO SECUENCIA_P ORDEN HOGAR ANIO TRIMESTRE PERIODO qfecha ///
     sector_informal ocup_informal informal
 
 save "$ruta/informalidad_geih_2022_2025.dta", replace
+
+//////////////////////////////////////// MODELO PRELIMINAR /////////////////////////////////
+
+* Ecuación (6) de Sánchez Bárcenas, Robles Ortiz y Carrillo
+* Ugalde (2018), "La heterogeneidad de la informalidad en México", Panorama
+* Económico vol. XIV(27): 139-159, pág. 154.
+*
+* Los autores estiman:
+*    p_i = 1 / (1 + exp(-(b0 + b1*ingreso + b2*edad + b3*sexo
+*                          + b4*ed_civil + b5*esc_apr)))
+* Copiamos esa especificación (las 5 variables independientes) usando las
+* variables que ya tenemos limpias en informalidad_geih_2022_2025.dta.
+
+//Variables del modelo//
+
+* informal, mujer, ingreso y nivel_educ ya vienen construidas en
+* limpieza_informalidad.do, así que sólo creamos las dos faltantes.
+
+* Edad
+gen edad = P6040
+label var edad "Edad (años)"
+
+* Vive con pareja (1=Sí, 0=No), usando P6070
+gen con_pareja = .
+replace con_pareja = 1 if inlist(P6070, 1, 2, 3)
+replace con_pareja = 0 if inlist(P6070, 4, 5, 6)
+label var con_pareja "Vive con pareja (1=Sí)"
+
+* Ingreso en millones de pesos para que el coeficiente sea legible
+gen ingreso_mill = ingreso/1000000
+label var ingreso_mill "Ingreso laboral mensual (millones COP)"
+
+* Nos quedamos con las filas que tienen info en la Y y las 5 X
+keep if !missing(informal, mujer, edad, con_pareja, nivel_educ, ingreso_mill, FEX_C18)
+count
+
+
+
+//Estimación del logit//
+
+logit informal mujer edad con_pareja nivel_educ ingreso_mill [pweight=FEX_C18]
+
+* Odds ratios
+logit informal mujer edad con_pareja nivel_educ ingreso_mill [pweight=FEX_C18], or
+
+
+//Pruebas de supuestos y bondad de ajuste//
+
+* Los diagnósticos clásicos no aceptan pweight, así que refitteamos sin pesos
+logit informal mujer edad con_pareja nivel_educ ingreso_mill
+
+* 5.1 AIC, BIC y Pseudo R^2
+estat ic
+
+* 5.2 linktest (forma funcional)
+linktest
+
+* 5.5 VIF (colinealidad) con OLS auxiliar
+quietly regress informal mujer edad con_pareja nivel_educ ingreso_mill
+estat vif
+
+//Efectos marginales (resultados preliminares)//
+
+quietly logit informal mujer edad con_pareja nivel_educ ingreso_mill [pweight=FEX_C18]
+
+* 6.1 Efectos marginales promedio (AME)
+margins, dydx(mujer edad con_pareja nivel_educ ingreso_mill)
+
+* Gráfico de AMEs
+marginsplot, horizontal recast(scatter) ///
+    title("Efectos marginales promedio sobre P(informal)") ///
+    xline(0) graphregion(color(white))
+graph export "$ruta/figuras/g_AME.png", replace width(1400)
+
+* 6.2 Probabilidad predicha por nivel educativo (otras X en su media)
+margins, at(nivel_educ=(1(1)7))
+marginsplot, ///
+    title("Probabilidad predicha de informalidad por nivel educativo") ///
+    ytitle("P(informal)") xtitle("Nivel educativo") ///
+    graphregion(color(white))
+graph export "$ruta/figuras/g_margins_educ.png", replace width(1400)
+
+* 6.3 Probabilidad predicha por ingreso
+margins, at(ingreso_mill=(0(0.5)5))
+marginsplot, ///
+    title("Probabilidad predicha de informalidad por ingreso") ///
+    ytitle("P(informal)") xtitle("Ingreso laboral (millones COP)") ///
+    graphregion(color(white))
+graph export "$ruta/figuras/g_margins_ingreso.png", replace width(1400)
+
 
 di "Base guardada: `c(N)' observaciones, `c(k)' variables"
 di "Período: 2022Q1 - 2025Q4 (16 trimestres)"
