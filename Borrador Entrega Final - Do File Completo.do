@@ -398,6 +398,19 @@ ________________________________________________________________________________
 set maxiter 10
 set iter 5
 
+* Detalles para análisis
+* Se hace un reemplazo de las variables string
+
+destring ORDEN, replace
+destring DIRECTORIO, replace
+destring SECUENCIA_P, replace
+destring HOGAR, replace
+
+* Edad
+
+gen edad = P6040
+label var edad "Edad (años)"
+
 * 1. Variable con_pareja ----------------------------------------------------------------
 
 cap drop con_pareja
