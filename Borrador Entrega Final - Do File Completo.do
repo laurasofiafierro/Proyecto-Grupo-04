@@ -381,7 +381,7 @@ ________________________________________________________________________________
 _____________________________________________________________________________________________________
 
 
-* -----------------------------  Estimación del modelo principal ------------------------------------
+/* -----------------------------  Estimación del modelo principal ------------------------------------
 
    Siguiendo la especificación de Sánchez Bárcenas et al. (2018), ecuación (6):
    
@@ -392,6 +392,7 @@ ________________________________________________________________________________
          β4·nivel_educ_i + β5·ingreso_mill_i + ε_i
          
    Variable dependiente: informal (1=Informal, 0=Formal)
+*\
 
 * Se crea el limite de iteraciones
 set maxiter 10
