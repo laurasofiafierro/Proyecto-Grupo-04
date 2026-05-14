@@ -387,32 +387,112 @@ ________________________________________________________________________________
 
 * -----------------------------  Estimación del modelo principal ------------------------------------
 
+   Siguiendo la especificación de Sánchez Bárcenas et al. (2018), ecuación (6):
+   
+   P(informal_i = 1|X) = 1 / [1 + exp(-Z_i)]
+   
+   donde:
+   Z_i = β0 + β1·mujer_i + β2·edad_i + β3·con_pareja_i + 
+         β4·nivel_educ_i + β5·ingreso_mill_i + ε_i
+         
+   Variable dependiente: informal (1=Informal, 0=Formal)
+
+* Crear limite de iteraciones
+set maxiter 10
+set iter 5
+
+* 8.0 Verificar/Crear variable con_pareja
+cap drop con_pareja
+gen con_pareja = 0
+replace con_pareja = 1 if inlist(P6070, 1, 2)  // 1=Casado(a), 2=Unión libre
+label variable con_pareja "Tiene pareja (casado/unido)"
+label define lpareja 0 "Sin pareja" 1 "Con pareja"
+label values con_pareja lpareja
+
+* 8.0.1 Verificar/Crear ingreso_mill
+cap drop ingreso_mill
+gen ingreso_mill = ingreso / 1000000
+label variable ingreso_mill "Ingreso laboral (millones COP)"
+
+* 8.0.2 Verificar que nivel_educ es numérica (ya debería estarlo)
+cap confirm numeric variable nivel_educ
+if _rc == 0 {
+    di "✓ nivel_educ es numérica - correcto"
+}
+else {
+    di "ERROR: nivel_educ no es numérica"
+}
+
 * 8.1  Modelo con pesos
 logit informal mujer edad con_pareja nivel_educ ingreso_mill [pweight=FEX_C18]
 
+* 8.1.1 Modelo con factores de expansión (pweight) - USANDO P6040
+logit informal mujer P6040 con_pareja i.nivel_educ ingreso_mill [pweight=FEX_C18], vce(robust)
+
 * Odds ratios
 logit informal mujer edad con_pareja nivel_educ ingreso_mill [pweight=FEX_C18], or
+
+En ejecución del modelo se presentan mas  de 100 iteraciones, sin embargo se puede acotar la cantidad
+de repeticiones con el fin de ajustarlo
+
+* Opción 1: Reducir la tolerancia (menos preciso, más rápido)
+logit informal mujer P6040 con_pareja i.nivel_educ ingreso_mill [pw=FEX_C18], vce(robust) tolerance(1e-6)
+
+* Opción 2: Aumentar iteraciones pero mostrar menos log
+set iterlog off      * No muestra cada iteración
+set maxiter 100      * Máximo 100 iteraciones
+
+* Opción 3: Lo más rápido - sin errores robustos (no recomendado para trabajo académico)
+logit informal mujer P6040 con_pareja i.nivel_educ ingreso_mill [pw=FEX_C18]
 
 * ---------------------------------- Pruebas Bondad de Ajuste ---------------------------------------
 
 * Los diagnósticos clásicos no aceptan pweight, así que retiramos los pesos
 
-logit informal mujer edad con_pareja nivel_educ ingreso_mill
+describe informal mujer P6040 con_pareja nivel_educ ingreso_mill
+logit informal mujer P6040 con_pareja i.nivel_educ ingreso_mill
 
 * Matriz de clasificación (¿Qué tan bien predice el modelo?)
 
 estat classification
+estat ic
 
 * 8.1 Curva ROC (Poder de discriminación del modelo)
-lroc
+
+lroc, title("Curva ROC - Modelo Logit") ///
+    lcolor(blue) lwidth(medthick) ///
+    graphregion(color(white))
+graph export "$ruta/figuras/curva_roc.png", replace width(1400) height(900)
 
 * 8.2 AIC, BIC y Pseudo R^2
 estat ic
 
+* 8.2.5 Test de Hosmer-Lemeshow
+estat gof, group(10)
+
 * 8.3 linktest (forma funcional)
 linktest
 
-* 8.4 VIF (colinealidad) con OLS auxiliar
+===================== PRUEBAS DE SUPUESTOS ====================="
+
+* 8.4.1 VIF (multicolinealidad)
+quietly regress informal mujer edad con_pareja i.nivel_educ ingreso_mill
+estat vif
+
+* 8.4.2 Test de linealidad (relación no lineal de edad)
+gen edad2 = edad^2
+quietly logit informal mujer edad edad2 con_pareja i.nivel_educ ingreso_mill
+test edad edad2
+di "Test de relación no lineal (H0: relación lineal):"
+di "   p-valor = " %5.4f r(p)
+if r(p) < 0.05 {
+    di "   → Relación NO lineal detectada"
+}
+else {
+    di "   → Relación lineal aceptada"
+}
+
+* 8.4.3 VIF (colinealidad) con OLS auxiliar
 
 quietly regress informal mujer edad con_pareja nivel_educ ingreso_mill
 estat vif
