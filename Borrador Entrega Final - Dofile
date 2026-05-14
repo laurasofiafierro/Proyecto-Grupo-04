@@ -1,18 +1,17 @@
 /*   LO QUE FALTA !!!
 
-* 7. PENDIENTE Delimitación de Variables - ¿Cuáles se quedan? - (Manuel)
-* 8. PENDIENTE Modelo Logit o Probit, ¿Cuál se elige? - (Laura y Zahir)
+* 8. PENDIENTE Modelo Logit o Probit, ¿Cuál se elige? 
             - Estimación 
             - Efectos Marginales 
             - Summary del modelo
             - Tab del modelo PENDIENTE
             - Interpretaciones PENDIENTE
-* 9. Tablas y Gráficas - Desagregación - (David)
+* 9. Tablas y Gráficas - Desagregación 
 *  - Tendencia temporal
 *  - Informalidad por sexo
 *  - Educación
-* 10. Interpretación de Resultados - (Dumar)
-* 11. Conclusiones - (Zahir)
+* 10. Interpretación de Resultados 
+* 11. Conclusiones 
 
 */
 
@@ -193,7 +192,7 @@ ________________________________________________________________________________
       Dimensión 2 — Ocupación informal: no cotiza pensión, trabajador familiar
                   sin remuneración, sin contrato, etc.
 
--------------------------------------- Dimensión 1: Sector informal ---------------------------------------
+-------------------------------------- Dimensión 1: Sector informal ---------------------------------
 
  Una persona está en el sector informal si:
 
@@ -329,11 +328,28 @@ ________________________________________________________________________________
 * Esto debería dar valores cercanos al ~58% que reporta el DANE
 tab PERIODO informal [iw=FEX_C18], row nofreq
 
-Se realizó una validación cruzada mediante el comando tab PERIODO informal [iw=FEX_C18], row. Tras detectar que la 
-media inicial era del 53%, se ajustó el código para incluir correctamente a los trabajadores familiares sin remuneración, 
-logrando una convergencia del 95% con las cifras oficiales del DANE (58%), lo que valida la robustez de la base construida.
+Se realizó una validación cruzada mediante el comando tab PERIODO informal [iw=FEX_C18], row. 
+Tras detectar que la media inicial era del 53%, se ajustó el código para incluir correctamente a los 
+trabajadores familiares sin remuneración, logrando una convergencia del 95% con las cifras oficiales 
+del DANE (58%), lo que valida la robustez de la base construida.
 
 */
+
+* Unión de módulos (Ocupados + Características Generales)
+
+merge 1:1 DIRECTORIO SECUENCIA_P ORDEN HOGAR using "caracteristicas_generales.dta"
+keep if _merge == 3
+
+* La construcción del indicador de informalidad
+* Se aplicó la metodología de convergencia del DANE cruzando dos dimensiones:
+
+gen informal = .
+replace informal = 1 if (sector_informal == 1 & ocupacion_informal == 1)
+replace informal = 0 if (sector_informal == 0 & ocupacion_informal == 0)
+
+* Exclusión de empleados oficiales
+replace informal = 0 if P6430 == 1
+
 ______________________________________________________________________________________________________
                                                 6. BASE FINAL
 ______________________________________________________________________________________________________
@@ -365,34 +381,10 @@ ________________________________________________________________________________
                                         8. Modelo de Regresión
 _____________________________________________________________________________________________________
 
-* Unión de módulos (Ocupados + Características Generales)
-
-merge 1:1 DIRECTORIO SECUENCIA_P ORDEN HOGAR using "caracteristicas_generales.dta"
-keep if _merge == 3
-
-* La construcción del indicador de informalidad
-* Se aplicó la metodología de convergencia del DANE cruzando dos dimensiones:
-
-gen informal = .
-replace informal = 1 if (sector_informal == 1 & ocupacion_informal == 1)
-replace informal = 0 if (sector_informal == 0 & ocupacion_informal == 0)
-
-* Exclusión de empleados oficiales
-replace informal = 0 if P6430 == 1
 
 * -----------------------------  Estimación del modelo principal -------------------------------------------------------
 
-logit informal mujer i.nivel_educ ln_ingreso i.rango_edad urbano [iw=FEX_C18]
 
-* Efectos Marginales
-margins, dydx(*) atmeans
-
-* Calculamos el efecto promedio de ser mujer y del nivel educativo en la probabilidad
-margins, dydx(mujer nivel_educ urbano) atmeans
-
-marginsplot, horizontal yline(0) title("Impacto de la Educación en la Probabilidad de ser Informal")
-    xtitle("Cambio en la probabilidad (puntos porcentuales)")
-graph export "efectos_marginales_educ.png", replace
 
 * ----------------------------------------- Pruebas Bondad de Ajuste -----------------------------------------------------
 
