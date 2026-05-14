@@ -200,7 +200,7 @@ ________________________________________________________________________________
          1=Trab. solo, 2=2-3, 3=4-5, 4=6-10, 5=11-19...
 */
 
-*Generando la variable final
+* Generando la variable final
 gen sector_informal = 0
 
 * Por tamaño (hasta 5 personas) — las categorías 1, 2, 3 son <=5
@@ -395,10 +395,8 @@ ________________________________________________________________________________
 *\
 
 * Limite de iteraciones
-
 set more off 
 set maxiter 20
-
 
 * Detalles para análisis
 
@@ -439,133 +437,117 @@ label variable ln_ingreso "Logaritmo del ingreso laboral"
 tab informal tab nivel_educ informal, row 
 sum ingreso ln_ingreso, detail
 
-* Modelo con pesos -------------------------------------------------------------------------------------
+/* __________________________________________________________________________________________________
+                                 8. MODELACIÓN ECONOMÉTRICA (LOGIT)
+__________________________________________________________________________________________________
+*/
 
-* ln natural del ingreso
-logit informal mujer edad con_pareja i.nivel_educ ln_ingreso [pw=FEX_C18], vce(robust)
+* Definición de Macros Globales "controles": Lista de variables independientes (i. para dummies automáticas)
 
-* ingreso_millones
-logit informal mujer edad con_pareja i.nivel_educ ingreso_mill [pweight=FEX_C18], vce(robust)
+global controles "mujer edad con_pareja i.nivel_educ"
 
-* Odds ratios
+* 'pesos': Factor de expansión para que los resultados sean representativos a nivel nacional
 
-logit, or
-logit informal mujer edad con_pareja nivel_educ ingreso_mill [pweight=FEX_C18], or
+global pesos "[pw=FEX_C18]"
 
-*****************************************************************************************************
 
-* ---------------------------------- Pruebas Bondad de Ajuste ---------------------------------------
+* ---------------------------------- 8.1. Estimación de Modelos ------------------------------------
+
+* MODELO A: Con Logaritmo del Ingreso (Controla sesgo y valores extremos)
+logit informal $controles ln_ingreso $pesos, vce(robust)
+estimates store Modelo_Ln
+
+* MODELO B: Con Ingreso en Millones (Ideal para interpretación y gráficos)
+logit informal $controles ingreso_mill $pesos, vce(robust)
+estimates store Modelo_Mill
+
+* Comparativa rápida de Odds Ratios entre ambas especificaciones
+esttab Modelo_Ln Modelo_Mill, or p star(* 0.1 ** 0.05 *** 0.01) title("Comparativa Odds Ratios")
+
+* ------------------------  8.2. PRUEBAS DE BONDAD DE AJUSTE ----------------------------------------
 
 * Los diagnósticos clásicos no aceptan pweight, así que retiramos los pesos
+quietly logit informal $controles ingreso_mill, vce(robust)
 
-describe informal mujer P6040 con_pareja nivel_educ ingreso_mill
-
-logit informal mujer P6040 con_pareja i.nivel_educ ingreso_mill
-
-* Matriz de clasificación (¿Qué tan bien predice el modelo?)
-
+* Matriz de clasificación: Capacidad de predicción correcta del modelo
 estat classification
 
-* Curva ROC (Poder de discriminación del modelo)
+* Curva ROC: Poder de discriminación entre formal e informal
+lroc, title("Curva ROC - Modelo seleccionado")
 
-quietly logit informal mujer P6040 con_pareja i.nivel_educ ingreso_mill
-lroc, title("Curva ROC - Modelo Logit")
-
-* AIC, BIC y Pseudo R^2
+* Criterios de Información: AIC y BIC (A menor valor, mejor ajuste)
 estat ic
 
-* Test de Hosmer-Lemeshow
+* Test de Hosmer-Lemeshow: Bondad de ajuste global
 estat gof, group(10)
 
-* linktest (forma funcional)
+* Linktest: Verificación de la especificación de la forma funcional
 linktest
 
-* -----------------------------  Prueba de Supuestos ------------------------------------------------
 
-* VIF (multicolinealidad)
-quietly regress informal mujer edad con_pareja i.nivel_educ ingreso_mill
+*------------------------  8.3. PRUEBA DE SUPUESTOS ------------------------------------------------
+
+
+* VIF: Detección de multicolinealidad (vía regresión lineal auxiliar)
+
+quietly regress informal $controles ingreso_mill
 estat vif
 
-* Test de linealidad (relación no lineal de edad)
-
+* Test de relación no lineal: Verificación de efecto cuadrático en la edad
 gen edad2 = edad^2
-quietly logit informal mujer edad edad2 con_pareja i.nivel_educ ingreso_mill
+quietly logit informal mujer edad edad2 con_pareja i.nivel_educ ingreso_mill $pesos, vce(robust)
 test edad edad2
-di "Test de relación no lineal (H0: relación lineal):"
-di "   p-valor = " %5.4f r(p)
-if r(p) < 0.05 {
-    di "   → Relación NO lineal detectada"
-}
-else {
-    di "   → Relación lineal aceptada"
-}
-
-* 8.4.3 VIF (colinealidad) con OLS auxiliar
-
-quietly regress informal mujer edad con_pareja nivel_educ ingreso_mill
-estat vif
+di "p-valor relación no lineal edad: " r(p)
 
 
-*-----------------------------   Efectos marginales (resultados preliminares) --------------------------
+/* ------------------------- 8.4. EFECTOS MARGINALES ----------------------------------------------------
 
-quietly logit informal mujer edad con_pareja nivel_educ ingreso_mill [pweight=FEX_C18]
+* Estimación de Efectos Marginales Promedio (AME) sobre el Modelo B
 
-* Efectos marginales promedio (AME)
-margins, dydx(mujer edad con_pareja nivel_educ ingreso_mill)
+quietly logit informal $controles ingreso_mill $pesos, vce(robust)
+margins, dydx(*) post
+estimates store Margins_Final
 
-* Gráfico de AMEs
+* Gráfico de Efectos Marginales (Impacto en puntos porcentuales)
 
-marginsplot, horizontal recast(scatter) ///
+marginsplot, horizontal recast(scatter) xline(0) ///
     title("Efectos marginales promedio sobre P(informal)") ///
-    xline(0) graphregion(color(white))
-graph export "$ruta/figuras/g_AME.png", replace width(1400)
+    graphregion(color(white))
+graph export "g_AME.png", replace
 
-* Probabilidad predicha por nivel educativo (otras X en su media)
+* Probabilidad predicha por Nivel Educativo (Perfil del trabajador)
 
+quietly logit informal $controles ingreso_mill $pesos, vce(robust)
 margins, at(nivel_educ=(1(1)7))
-marginsplot, ///
-    title("Probabilidad predicha de informalidad por nivel educativo") ///
-    ytitle("P(informal)") xtitle("Nivel educativo") ///
-    graphregion(color(white))
-graph export "$ruta/figuras/g_margins_educ.png", replace width(1400)
-
-* Probabilidad predicha por ingreso ----------------------------------------------------------------
-
-margins, at(ingreso_mill=(0(0.5)5))
-marginsplot, ///
-    title("Probabilidad predicha de informalidad por ingreso") ///
-    ytitle("P(informal)") xtitle("Ingreso laboral (millones COP)") ///
-    graphregion(color(white))
-graph export "$ruta/figuras/g_margins_ingreso.png", replace width(1400)
+marginsplot, title("Probabilidad por Nivel Educativo") graphregion(color(white))
+graph export "g_margins_educ.png", replace
 
 
-di "Base guardada: `c(N)' observaciones, `c(k)' variables"
-di "Período: 2022Q1 - 2025Q4 (16 trimestres)"
+/* __________________________________________________________________________________________________
+                                 9. EXPORTACIÓN Y TABLAS FINALES
+__________________________________________________________________________________________________
+*/
 
+* Generación de tabla comparativa final para el reporte en formato Word/RTF
+esttab Modelo_Ln Modelo_Mill Margins_Final using "Resultados_Finales_G4.rtf", replace ///
+    mtitle("Logit (Beta)" "Logit (OR)" "Efectos Marginales") ///
+    b(3) p(3) star(* 0.1 ** 0.05 *** 0.01) label wide compress ///
+    addnotes("Errores estándar robustos. Fuente: GEIH 2022-2025.")
 
-/* ------------------------------------- Interpretaciones:------------------------------------------
+di "Proceso finalizado: Modelos estimados y exportados correctamente."
+
+__________________________________________________________________________________________
+                                    10. Intepretaciones y Resultados
+_____________________________________________________________________________________________________
+*/
    
-   1. Interpretación de 'mujer': Si el dydx es XXXX, significa que ser mujer aumenta 
+1. Interpretación de 'mujer': Si el dydx es XXXX, significa que ser mujer aumenta 
       en XXX puntos porcentuales la probabilidad de ser informal, ceteris paribus.
    
    2. Educación: Los coeficientes XXXXX en niveles altos (Posgrado) confirman 
       que la educación es un escudo contra la informalidad.
    
    3. Ingreso: El coeficiente de 'ln_ingreso' debería ser negativo y significativo.
-
-*/
-
-*/ ________________________________________________________________________________________________
-                                        9. Tablas y Gráficos
-_____________________________________________________________________________________________________
-*/
-
-
-/*
-_____________________________________________________________________________________________________
-                                    10. Intepretaciones y Resultados
-_____________________________________________________________________________________________________
-*/
 
 /*
 _____________________________________________________________________________________________________
