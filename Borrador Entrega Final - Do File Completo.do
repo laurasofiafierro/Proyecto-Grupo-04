@@ -377,7 +377,7 @@ di "Período: 2022Q1 - 2025Q4 (16 trimestres)"
 /*
 _____________________________________________________________________________________________________
  
-                                                      7. Modelo de Regresión
+                                      7. Modelo de Regresión
 _____________________________________________________________________________________________________
 
 
@@ -397,7 +397,7 @@ ________________________________________________________________________________
 set maxiter 10
 set iter 5
 
-* 1. Variable con_pareja
+* 1. Variable con_pareja ----------------------------------------------------------------
 
 cap drop con_pareja
 gen con_pareja = 0
@@ -406,7 +406,7 @@ label variable con_pareja "Tiene pareja"
 label define lpareja 0 "Sin pareja" 1 "Con pareja"
 label values con_pareja lpareja
 
-* 2. Variable ingreso_mill
+* 2. Variable ingreso_mill -------------------------------------------------------
 
 cap drop ingreso_mill
 gen ingreso_mill = ingreso / 1000000
@@ -425,7 +425,7 @@ else {
 
 logit informal mujer edad con_pareja nivel_educ ingreso_mill [pweight=FEX_C18]
 
-* 3.  Modelo con factores de expansión (pweight) - USANDO P6040 (edad) ---------------------------------
+* ----------------------3.  Modelo con factores de expansión (pweight) - USANDO P6040 (edad) -------------
 
 logit informal mujer P6040 con_pareja i.nivel_educ ingreso_mill [pweight=FEX_C18], vce(robust)
 
@@ -463,7 +463,6 @@ estat classification
 
 quietly logit informal mujer P6040 con_pareja i.nivel_educ ingreso_mill
 lroc, title("Curva ROC - Modelo Logit")
-
 
 * AIC, BIC y Pseudo R^2
 estat ic
@@ -523,7 +522,7 @@ marginsplot, ///
     graphregion(color(white))
 graph export "$ruta/figuras/g_margins_educ.png", replace width(1400)
 
-* Probabilidad predicha por ingreso
+* Probabilidad predicha por ingreso ----------------------------------------------------------------
 
 margins, at(ingreso_mill=(0(0.5)5))
 marginsplot, ///
