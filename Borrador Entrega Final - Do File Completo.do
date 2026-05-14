@@ -1,19 +1,3 @@
-/*   LO QUE FALTA 
-
-* 8. PENDIENTE Modelo Logit o Probit, ¿Cuál se elige? 
-            - Summary del modelo
-            - Tab del modelo PENDIENTE
-            - Interpretaciones PENDIENTE
-* 9. Tablas y Gráficas - Desagregación 
-*             - Tendencia temporal
-*              - Informalidad por sexo
-*              - Educación
-* 10. Interpretación de Resultados 
-* 11. Conclusiones 
-
-*/
-
-
 /* 
 ___________________________________________________________________________________________________
 
@@ -327,13 +311,17 @@ ________________________________________________________________________________
                      5. TASA DE INFORMALIDAD POR TRIMESTRE (verificación rápida)
 _____________________________________________________________________________________________________
 
-* Esto debería dar valores cercanos al ~58% que reporta el DANE
-tab PERIODO informal [iw=FEX_C18], row nofreq
+Tras detectar que la tasa inicial de informalidad se ubicaba alrededor del 53%, se ajustó el 
+algoritmo de clasificación para incorporar correctamente a los trabajadores familiares sin remuneración 
+y otras categorías ocupacionales estructuralmente informales.
 
-Se realizó una validación cruzada mediante el comando tab PERIODO informal [iw=FEX_C18], row. 
-Tras detectar que la media inicial era del 53%, se ajustó el código para incluir correctamente a los 
-trabajadores familiares sin remuneración, logrando una convergencia del 95% con las cifras oficiales 
-del DANE (58%), lo que valida la robustez de la base construida.
+Luego de esta corrección, la tasa estimada convergió hacia valores cercanos a las cifras oficiales 
+reportadas por el DANE (~58%), lo que respalda la consistencia metodológica de la base construida.
+
+*/
+
+tab informal [iw=FEX_C18]
+mean informal [pw=FEX_C18]
 
 */
 
